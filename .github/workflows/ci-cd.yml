@@ -1,0 +1,55 @@
+# Pipeline CI/CD automatique
+
+name: CI/CD Pipeline
+
+# Déclenche le pipeline sur push et pull request vers main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Job 1: Tests
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Étape 1: Récupérer le code
+    - name: Checkout du code
+      uses: actions/checkout@v3
+    
+    # Étape 2: Installer Node.js
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    # Étape 3: Installer les dépendances
+    - name: Installation des dépendances
+      run: npm install
+    
+    # Étape 4: Lancer les tests
+    - name: Exécution des tests
+      run: npm test
+
+  # Job 2: Build Docker (seulement si les tests passent)
+  build:
+    runs-on: ubuntu-latest
+    needs: test  # Attend que les tests soient OK
+    
+    steps:
+    # Étape 1: Récupérer le code
+    - name: Checkout du code
+      uses: actions/checkout@v3
+    - name: Build Docker Image
+      run: docker build -t devops-api:latest .
+    
+    # Étape 4: Tester que l'image fonctionne
+    - name: Test Docker Image
+      run: |
+        docker run -d -p 3000:3000 --name test-container devops-api:latest
+        sleep 5
+        curl -f http://localhost:3000/health || exit 1
+        docker stop test-container
+  
